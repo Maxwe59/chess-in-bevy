@@ -3,7 +3,18 @@ use bevy::prelude::*;
 fn main() {
     App::new()
         .add_systems(Startup, setup)
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                resize_constraints: WindowResizeConstraints {
+                    max_width: 1000.0,
+                    min_height: 1000.0,
+                    min_width: 1000.0,
+                    max_height: 1000.0,
+                },
+                ..default()
+            }),
+            ..default()
+        }))
         .run();
 }
 
