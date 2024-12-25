@@ -1,3 +1,5 @@
+use std::thread::current;
+
 use bevy::prelude::*;
 
 const DIMENSIONS: f32 = 800.0;
@@ -16,7 +18,7 @@ enum EntityColor {
     None,
 }
 
-#[derive(Component, Default, Clone, Copy)]
+#[derive(Component, Default, Clone, Copy, PartialEq)]
 enum Pieces {
     Pawn {
         entity_color: EntityColor,
@@ -53,8 +55,9 @@ fn board_init(
     mut meshes: ResMut<Assets<Mesh>>,
     mut commands: Commands,
     mut matrix: ResMut<Matrix>,
+    asset_server: Res<AssetServer>,
 ) {
-    commands.spawn(Camera2d::default());
+    commands.spawn((Camera2d::default(), Transform::from_xyz(0.0, 0.0, 0.0)));
 
     for row in &matrix.board {
         for tile in row {
@@ -73,8 +76,69 @@ fn board_init(
                 },
                 Mesh2d(meshes.add(Rectangle::new(DIMENSIONS / 8.0, DIMENSIONS / 8.0))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
-                Transform::from_xyz(tile.tile_pos.0, tile.tile_pos.1, 0.0),
+                Transform::from_xyz(tile.tile_pos.0, tile.tile_pos.1, 1.0),
             ));
+
+            if tile.piece_params != Pieces::None {
+                let mut path = "path".to_string();
+                match tile.piece_params {
+                    //ugly ass code
+                    Pieces::Pawn {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_pawn.png".to_string()),
+                    Pieces::Pawn {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_pawn.png".to_string()),
+                    Pieces::King {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_king.png".to_string()),
+                    Pieces::King {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_king.png".to_string()),
+                    Pieces::Queen {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_queen.png".to_string()),
+                    Pieces::Queen {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_queen.png".to_string()),
+                    Pieces::Rook {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_rook.png".to_string()),
+                    Pieces::Rook {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_rook.png".to_string()),
+                    Pieces::Bishop {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_bishop.png".to_string()),
+                    Pieces::Bishop {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_bishop.png".to_string()),
+                    Pieces::Knight {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_knight.png".to_string()),
+                    Pieces::Knight {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_knight.png".to_string()),
+
+                    _ => (),
+                }
+                commands.spawn((
+                    Sprite::from_image(asset_server.load(path)),
+                    Transform {
+                        translation: Vec3 {
+                            x: tile.tile_pos.0,
+                            y: tile.tile_pos.1,
+                            z: 5.0,
+                        },
+                        scale: Vec3 {
+                            x: 0.45,
+                            y: 0.45,
+                            z: 5.0,
+                        },
+                        ..Default::default()
+                    },
+                ));
+            }
         }
     }
 }
@@ -93,7 +157,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
 
     for row in 0..8 {
         for collumn in 0..8 {
-            match (row) {
+            match row {
                 6 => {
                     current_piece = Pieces::Pawn {
                         entity_color: EntityColor::White,
@@ -104,7 +168,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
                         entity_color: EntityColor::Black,
                     }
                 }
-                0 => match (collumn) {
+                0 => match collumn {
                     0 => {
                         current_piece = Pieces::Rook {
                             entity_color: EntityColor::Black,
@@ -147,7 +211,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
                     }
                     _ => (),
                 },
-                7 => match (collumn) {
+                7 => match collumn {
                     0 => {
                         current_piece = Pieces::Rook {
                             entity_color: EntityColor::White,
@@ -190,7 +254,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
                     }
                     _ => (),
                 },
-                _ => (),
+                _ => (current_piece = Pieces::None),
             }
 
             let spot_instance = SpotInstance {
@@ -201,14 +265,14 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
             };
 
             matrix[row as usize][collumn as usize] = spot_instance;
-            pos_change.0 += (DIMENSIONS / 8.0);
+            pos_change.0 += DIMENSIONS / 8.0;
             color_change = if color_change == EntityColor::White {
                 EntityColor::Black
             } else {
                 EntityColor::White
             };
         }
-        pos_change.1 -= (DIMENSIONS / 8.0);
+        pos_change.1 -= DIMENSIONS / 8.0;
         pos_change.0 = -((DIMENSIONS / 2.0) - (DIMENSIONS / 16.0));
         color_change = if color_change == EntityColor::White {
             EntityColor::Black
@@ -240,4 +304,11 @@ fn main() {
             ..default()
         }))
         .run();
+}
+fn spawn_image(mut commands: Commands, asset_server: Res<AssetServer>) {
+    //commands.spawn((Camera2d::default(),Transform::from_xyz(0.0,0.0,-10.0)));
+    commands.spawn((
+        Sprite::from_image(asset_server.load("terry.png")),
+        Transform::from_xyz(0.0, 0., 5.0),
+    ));
 }
