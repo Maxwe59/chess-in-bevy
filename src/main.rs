@@ -80,6 +80,7 @@ fn board_init(
 }
 
 fn populate_board() -> [[SpotInstance; 8]; 8] {
+    let mut current_piece = Pieces::None;
     let spot_instance = SpotInstance {
         ..Default::default()
     };
@@ -92,9 +93,109 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
 
     for row in 0..8 {
         for collumn in 0..8 {
+            match (row) {
+                6 => {
+                    current_piece = Pieces::Pawn {
+                        entity_color: EntityColor::White,
+                    }
+                }
+                1 => {
+                    current_piece = Pieces::Pawn {
+                        entity_color: EntityColor::Black,
+                    }
+                }
+                0 => match (collumn) {
+                    0 => {
+                        current_piece = Pieces::Rook {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    1 => {
+                        current_piece = Pieces::Knight {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    2 => {
+                        current_piece = Pieces::Bishop {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    3 => {
+                        current_piece = Pieces::Queen {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    4 => {
+                        current_piece = Pieces::King {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    5 => {
+                        current_piece = Pieces::Bishop {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    6 => {
+                        current_piece = Pieces::Knight {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    7 => {
+                        current_piece = Pieces::Rook {
+                            entity_color: EntityColor::Black,
+                        }
+                    }
+                    _ => (),
+                },
+                7 => match (collumn) {
+                    0 => {
+                        current_piece = Pieces::Rook {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    1 => {
+                        current_piece = Pieces::Knight {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    2 => {
+                        current_piece = Pieces::Bishop {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    3 => {
+                        current_piece = Pieces::Queen {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    4 => {
+                        current_piece = Pieces::King {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    5 => {
+                        current_piece = Pieces::Bishop {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    6 => {
+                        current_piece = Pieces::Knight {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    7 => {
+                        current_piece = Pieces::Rook {
+                            entity_color: EntityColor::White,
+                        }
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
+
             let spot_instance = SpotInstance {
                 tile_colour: color_change,
-                piece_params: Pieces::None, //FIX LATER
+                piece_params: current_piece,
                 matrix_spot: (row + 1, collumn + 1),
                 tile_pos: pos_change,
             };
