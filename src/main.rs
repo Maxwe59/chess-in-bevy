@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+
 const DIMENSIONS: f32 = 800.0;
 
 #[derive(Resource)]
@@ -40,106 +41,22 @@ enum Pieces {
     None,
 }
 
+
+
+/*
+tile_colour -> Black or White
+piece_params -> piece occupying current tile, or none
+matrix_spot -> [0,0] is top left spot, [7,7] is bottom right spot.
+tile_pos -> real coordinates where tile is being rendered
+*/
 #[derive(Component, Default, Clone, Copy)]
 struct SpotInstance {
     tile_colour: EntityColor,
     piece_params: Pieces,        //None type if piece does not occupy tile
-    matrix_spot: (usize, usize), //uses 1 based counting. Range (inclusive): (1,8)
+    matrix_spot: (usize, usize), //0 based counting. represents matrix position
     tile_pos: (f32, f32),
 }
 
-fn board_init(
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut commands: Commands,
-    mut matrix: ResMut<Matrix>,
-    asset_server: Res<AssetServer>,
-) {
-    commands.spawn((Camera2d::default(), Transform::from_xyz(0.0, 0.0, 0.0)));
-
-    for row in &matrix.board {
-        for tile in row {
-            let color = if tile.tile_colour == EntityColor::Black {
-                Color::BLACK
-            } else {
-                Color::WHITE
-            };
-
-            commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(DIMENSIONS / 8.0, DIMENSIONS / 8.0))),
-                MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
-                Transform::from_xyz(tile.tile_pos.0, tile.tile_pos.1, 1.0),
-            ));
-
-            if tile.piece_params != Pieces::None {
-                let mut path = "path".to_string();
-                match tile.piece_params {
-                    //ugly ass code
-                    Pieces::Pawn {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_pawn.png".to_string()),
-                    Pieces::Pawn {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_pawn.png".to_string()),
-                    Pieces::King {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_king.png".to_string()),
-                    Pieces::King {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_king.png".to_string()),
-                    Pieces::Queen {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_queen.png".to_string()),
-                    Pieces::Queen {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_queen.png".to_string()),
-                    Pieces::Rook {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_rook.png".to_string()),
-                    Pieces::Rook {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_rook.png".to_string()),
-                    Pieces::Bishop {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_bishop.png".to_string()),
-                    Pieces::Bishop {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_bishop.png".to_string()),
-                    Pieces::Knight {
-                        entity_color: EntityColor::Black,
-                    } => (path = "black_knight.png".to_string()),
-                    Pieces::Knight {
-                        entity_color: EntityColor::White,
-                    } => (path = "white_knight.png".to_string()),
-
-                    _ => (),
-                }
-                commands.spawn((
-                    SpotInstance {
-                        tile_colour: tile.tile_colour,
-                        piece_params: tile.piece_params,
-                        matrix_spot: tile.matrix_spot,
-                        tile_pos: tile.tile_pos,
-                    },
-                    Sprite::from_image(asset_server.load(path)),
-                    Transform {
-                        translation: Vec3 {
-                            x: tile.tile_pos.0,
-                            y: tile.tile_pos.1,
-                            z: 5.0,
-                        },
-                        scale: Vec3 {
-                            x: 0.45,
-                            y: 0.45,
-                            z: 5.0,
-                        },
-                        ..Default::default()
-                    },
-                ));
-            }
-        }
-    }
-}
 
 fn populate_board() -> [[SpotInstance; 8]; 8] {
     let mut current_piece = Pieces::None;
@@ -148,6 +65,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
     };
     let mut matrix = [[spot_instance; 8]; 8];
     let mut color_change = EntityColor::White;
+    //position starts top left (negative x, positive y )
     let mut pos_change = (
         -((DIMENSIONS / 2.0) - (DIMENSIONS / 16.0)),
         ((DIMENSIONS / 2.0) - (DIMENSIONS / 16.0)),
@@ -258,7 +176,7 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
             let spot_instance = SpotInstance {
                 tile_colour: color_change,
                 piece_params: current_piece,
-                matrix_spot: (row + 1, collumn + 1),
+                matrix_spot: (row, collumn),
                 tile_pos: pos_change,
             };
 
@@ -282,6 +200,105 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
     return matrix;
 }
 
+
+
+fn board_init(
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut commands: Commands,
+    mut matrix: ResMut<Matrix>,
+    asset_server: Res<AssetServer>,
+) {
+    commands.spawn((Camera2d::default(), Transform::from_xyz(0.0, 0.0, 0.0)));
+
+    for row in &matrix.board {
+        for tile in row {
+            let color = if tile.tile_colour == EntityColor::Black {
+                Color::BLACK
+            } else {
+                Color::WHITE
+            };
+
+            //spawn tile pattern (8x8 grid)
+            commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(DIMENSIONS / 8.0, DIMENSIONS / 8.0))),
+                MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
+                Transform::from_xyz(tile.tile_pos.0, tile.tile_pos.1, 1.0),
+            ));
+
+            if tile.piece_params != Pieces::None {
+                let mut path = "path".to_string();
+                match tile.piece_params {
+                    //ugly ass code
+                    Pieces::Pawn {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_pawn.png".to_string()),
+                    Pieces::Pawn {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_pawn.png".to_string()),
+                    Pieces::King {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_king.png".to_string()),
+                    Pieces::King {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_king.png".to_string()),
+                    Pieces::Queen {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_queen.png".to_string()),
+                    Pieces::Queen {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_queen.png".to_string()),
+                    Pieces::Rook {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_rook.png".to_string()),
+                    Pieces::Rook {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_rook.png".to_string()),
+                    Pieces::Bishop {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_bishop.png".to_string()),
+                    Pieces::Bishop {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_bishop.png".to_string()),
+                    Pieces::Knight {
+                        entity_color: EntityColor::Black,
+                    } => (path = "black_knight.png".to_string()),
+                    Pieces::Knight {
+                        entity_color: EntityColor::White,
+                    } => (path = "white_knight.png".to_string()),
+
+                    _ => (),
+                }
+                commands.spawn((
+                    SpotInstance {
+                        tile_colour: tile.tile_colour,
+                        piece_params: tile.piece_params,
+                        matrix_spot: tile.matrix_spot,
+                        tile_pos: tile.tile_pos,
+                    },
+                    Sprite::from_image(asset_server.load(path)),
+                    Transform {
+                        translation: Vec3 {
+                            x: tile.tile_pos.0,
+                            y: tile.tile_pos.1,
+                            z: 5.0,
+                        },
+                        scale: Vec3 {
+                            x: 0.45,
+                            y: 0.45,
+                            z: 5.0,
+                        },
+                        ..Default::default()
+                    },
+                ));
+            }
+        }
+    }
+}
+
+
+
+
 fn drag_piece(mut inputs: EventReader<CursorMoved>) {
     for val in inputs.read() {
         let mousepos = val.position;
@@ -289,32 +306,7 @@ fn drag_piece(mut inputs: EventReader<CursorMoved>) {
     }
 }
 
-fn test_resource(
-    mut matrix: ResMut<Matrix>,
-    mut commands: Commands,
-    query: Query<Entity, With<SpotInstance>>,
-    asset_server: Res<AssetServer>,
-) {
-    matrix.board[5][5].piece_params = Pieces::Bishop {
-        entity_color: EntityColor::Black,
-    };
-    commands.spawn((
-        Sprite::from_image(asset_server.load("black_bishop.png")),
-        Transform {
-            translation: Vec3 {
-                x: matrix.board[5][5].tile_pos.0,
-                y: matrix.board[5][5].tile_pos.1,
-                z: 5.0,
-            },
-            scale: Vec3 {
-                x: 0.45,
-                y: 0.45,
-                z: 5.0,
-            },
-            ..Default::default()
-        },
-    ));
-}
+
 /*
 fn update_board(piece1: (x,y), new_pos: (x,y))->mutate matrix resource
 
@@ -333,16 +325,16 @@ fn update_board(
     spot_query: Query<(Entity, &SpotInstance)>,
     mut commands: Commands
 ) {
-    //Target is matrix position of piece to move to new_pos.
-    //!!!COUNTING STARTS FROM 1-8. USE 1-8 BASE COUNTING!!!
+
     // EFFECTIVE INPUTS: 
-    //IMPORTANT FIX: Fix new_pos x and y dimensions being reversed. 
-    let target = (1, 1);
-    let new_pos = (7, 1);
+    //(0,0 represents top left corner of board). first number represents row, second represents collumn
+    //for example (6,7) gives the piece in the 6th row, 7th collumn in the 2d array
+    let target = (1,1);
+    let new_pos = (2,1);
 
 
     //despawn piece
-    let new_pos_piece = matrix.board[new_pos.0-1][new_pos.1-1].piece_params;
+    let new_pos_piece = matrix.board[new_pos.0][new_pos.1].piece_params;
     if new_pos_piece!=Pieces::None{
         for (entity, component) in spot_query.iter(){
             if component.matrix_spot == new_pos{
@@ -351,20 +343,20 @@ fn update_board(
         }
         
     }
-    
+   
     //rest of code to not remove
-    let target_piece = matrix.board[target.0-1][target.1-1].piece_params;
+    let target_piece = matrix.board[target.0][target.1].piece_params;
     for entity in query.iter() {
         if entity.matrix_spot == target {
-            matrix.board[target.0-1][target.1-1].piece_params = Pieces::None; //update resource matrix
+            matrix.board[target.0][target.1].piece_params = Pieces::None; //update resource matrix
         }
         if entity.matrix_spot == new_pos {
-            matrix.board[new_pos.0-1][new_pos.1-1].piece_params = target_piece; //update resource matrix
+            matrix.board[new_pos.0][new_pos.1].piece_params = target_piece; //update resource matrix
         }
     }
     //query through pieces, find target piece that matches description
-    let target_xy = matrix.board[target.0-1][target.1-1].tile_pos;
-    let new_pos_xy = matrix.board[new_pos.0-1][new_pos.1-1].tile_pos;
+    let target_xy = matrix.board[target.0][target.1].tile_pos;
+    let new_pos_xy = matrix.board[new_pos.0][new_pos.1].tile_pos;
     for mut entity in transform.iter_mut() {
         if (entity.translation.x == target_xy.0) && (entity.translation.y == target_xy.1) {
             entity.translation = Vec3 {
@@ -374,6 +366,7 @@ fn update_board(
             };
         }
     }
+    
      
 
     
