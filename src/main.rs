@@ -1,11 +1,12 @@
-use bevy::prelude::*;
-
+use bevy::{input::keyboard::KeyboardInput, prelude::*};
 
 const DIMENSIONS: f32 = 800.0;
 
 #[derive(Resource)]
 struct Matrix {
     board: [[SpotInstance; 8]; 8],
+    selected_piece: (usize, usize),
+    tile_selector: (usize, usize),
 }
 
 #[derive(Component, Default, Clone, Copy, PartialEq)]
@@ -41,8 +42,6 @@ enum Pieces {
     None,
 }
 
-
-
 /*
 tile_colour -> Black or White
 piece_params -> piece occupying current tile, or none
@@ -57,6 +56,10 @@ struct SpotInstance {
     tile_pos: (f32, f32),
 }
 
+#[derive(Component, PartialEq)]
+struct TileInstance {
+    matrix_spot: (usize, usize),
+}
 
 fn populate_board() -> [[SpotInstance; 8]; 8] {
     let mut current_piece = Pieces::None;
@@ -200,19 +203,17 @@ fn populate_board() -> [[SpotInstance; 8]; 8] {
     return matrix;
 }
 
-
-
 fn board_init(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut commands: Commands,
-    mut matrix: ResMut<Matrix>,
+    matrix: ResMut<Matrix>,
     asset_server: Res<AssetServer>,
 ) {
     commands.spawn((Camera2d::default(), Transform::from_xyz(0.0, 0.0, 0.0)));
 
-    for row in &matrix.board {
-        for tile in row {
+    for (row_index, row) in matrix.board.iter().enumerate() {
+        for (collumn_index, tile) in row.iter().enumerate() {
             let color = if tile.tile_colour == EntityColor::Black {
                 Color::BLACK
             } else {
@@ -221,6 +222,9 @@ fn board_init(
 
             //spawn tile pattern (8x8 grid)
             commands.spawn((
+                TileInstance {
+                    matrix_spot: (row_index, collumn_index),
+                },
                 Mesh2d(meshes.add(Rectangle::new(DIMENSIONS / 8.0, DIMENSIONS / 8.0))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(color))),
                 Transform::from_xyz(tile.tile_pos.0, tile.tile_pos.1, 1.0),
@@ -296,25 +300,72 @@ fn board_init(
     }
 }
 
-
-
-
-fn drag_piece(mut inputs: EventReader<CursorMoved>) {
+fn drag_piece(
+    read_test: Res<ButtonInput<MouseButton>>,
+    mut inputs: EventReader<CursorMoved>,
+    mut transform: Query<&mut Transform, With<Sprite>>,
+) {
     for val in inputs.read() {
-        let mousepos = val.position;
-        print!("x: {:?}, y: {:?}\n", mousepos.x, mousepos.y);
+        let mousepos: Vec2 = val.position;
+        for mut sprite in transform.iter_mut() {
+            sprite.translation.x = mousepos.x;
+            sprite.translation.y = mousepos.y;
+        }
     }
+    let test: Res<'_, ButtonInput<MouseButton>> = read_test;
 }
 
+fn keyboard_input_system(
+    mut query_squares: Query<(&mut Transform, &TileInstance)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut matrix: ResMut<Matrix>,
+) {
+    let original_pos = matrix.tile_selector;
 
-/*
-fn update_board(piece1: (x,y), new_pos: (x,y))->mutate matrix resource
+    if keyboard_input.just_pressed(KeyCode::KeyD) && (matrix.tile_selector.1<=6){
+        matrix.tile_selector.1 += 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyA)&& (matrix.tile_selector.1>=1){
+        matrix.tile_selector.1 -= 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyW)&& (matrix.tile_selector.0>=1){
+        matrix.tile_selector.0 -= 1;
+    }
+    if keyboard_input.just_pressed(KeyCode::KeyS)&& (matrix.tile_selector.0<=6){
+        matrix.tile_selector.0 += 1;
+    }
 
-resource -> matrix of board, containing data on every single spot
-every single tile -> component containing information on piece condition
-update_board -> system used to update the piece movement. updates the data in matrix resource,
+    for mut square in query_squares.iter_mut() {
+        if square.1.matrix_spot == original_pos{
+            square.0.scale = Vec3 {
+                x: 1.0,
+                y: 1.0,
+                z: 0.0,
+            };
+        }
+        if matrix.tile_selector == square.1.matrix_spot {
+                square.0.scale = Vec3 {
+                    x: 0.85,
+                    y: 0.85,
+                    z: 0.05,
+                };
+            
+        }
+    }
 
-*/
+    /*
+
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        info!("'A' currently pressed");
+    }
+
+    if keyboard_input.just_released(KeyCode::KeyA) {
+        info!("'A' just released");
+    }
+
+     */
+}
+
 
 fn update_board(
     //target: (usize, usize),
@@ -323,27 +374,24 @@ fn update_board(
     mut matrix: ResMut<Matrix>,
     mut transform: Query<&mut Transform, With<SpotInstance>>,
     spot_query: Query<(Entity, &SpotInstance)>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
-
-    // EFFECTIVE INPUTS: 
+    // EFFECTIVE INPUTS:
     //(0,0 represents top left corner of board). first number represents row, second represents collumn
     //for example (6,7) gives the piece in the 6th row, 7th collumn in the 2d array
-    let target = (1,1);
-    let new_pos = (2,1);
-
+    let target = (1, 1);
+    let new_pos = (2, 1);
 
     //despawn piece
     let new_pos_piece = matrix.board[new_pos.0][new_pos.1].piece_params;
-    if new_pos_piece!=Pieces::None{
-        for (entity, component) in spot_query.iter(){
-            if component.matrix_spot == new_pos{
-                commands.entity(entity).despawn(); 
+    if new_pos_piece != Pieces::None {
+        for (entity, component) in spot_query.iter() {
+            if component.matrix_spot == new_pos {
+                commands.entity(entity).despawn();
             }
         }
-        
     }
-   
+
     //rest of code to not remove
     let target_piece = matrix.board[target.0][target.1].piece_params;
     for entity in query.iter() {
@@ -366,19 +414,17 @@ fn update_board(
             };
         }
     }
-    
-     
-
-    
 }
 
 fn main() {
     App::new()
         .insert_resource(Matrix {
             board: populate_board(),
+            selected_piece: (0, 0),
+            tile_selector: (0, 0),
         })
         .add_systems(Startup, board_init)
-        .add_systems(FixedUpdate, update_board)
+        .add_systems(Update, keyboard_input_system)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "bgame".to_string(),
